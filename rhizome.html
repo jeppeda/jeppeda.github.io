@@ -1,0 +1,67 @@
+<html>
+	<head>
+		<title>rhizome</title>
+		<script type="text/javascript" src="svg.js"></script>
+		<script type="text/javascript" src="tunings.js"></script>
+		<script type="text/javascript" src="rhizome.js"></script>
+		<link rel="stylesheet" type="text/css" href="rhizome.css">
+	</head>
+	<body>
+	<div id="screen"></div>
+	<div class="settings">
+		<button id="restart">restart</button>
+		<button id="stop">stop</button>
+		<span>
+			number
+			<input id="number" type="range" min="1" max="65" step="1">
+		</span>
+		<span>
+			gravity
+			<input id="gravity" type="range" min="1" max="100" step="1">
+		</span>
+		<span>
+			wave
+			<button id="sin">sin</button>
+			<button id="saw">saw</button>
+			<button id="tri">tri</button>
+			<button id="sqr">sqr</button>
+		</span>
+		<span>
+			lopass
+			<input id="lopass" type="range" min="1" max="1000" step="1">
+		</span>
+		<span>
+			fm
+			<input id="fm" type="range" min="1" max="4000" step="1">
+		</span>
+		<span>
+			tuning
+			<button id="rnd">rnd</button>
+			<button id="pure">pure</button>
+			<button id="pythagorean">pythagorean</button>
+			<button id="quarterTone">quarter tone</button>
+			<button id="regular">regular</button>
+			<button id="minor">minor</button>
+			<button id="tetrachord">tetrachord</button>
+			<button id="hijaz">hijaz</button>
+			<button id="jin">jin</button>
+			<button id="phrygian">phrygian</button>
+			<button id="penta">penta</button>
+		</span>
+		<span>
+			detune
+			<input id="detune" type="range" min="1" max="1000" step="1">
+		</span>
+
+		<span>
+			tune
+			<input id="tune" type="range" min="1" max="1000" step="1">
+		</span>
+		
+		<span>
+			vol
+			<input id="master" type="range" min="1" max="1000" step="1">
+		</span>
+	</div>
+	</body>
+</html>
