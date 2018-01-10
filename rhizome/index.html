@@ -9,6 +9,10 @@
 	<body>
 	<div id="screen"></div>
 	<div class="settings">
+		<span class="toggle">
+			arp
+			<input id="arp" type="range" min="0" max="3" step="1">
+		</span>
 		<button id="restart">restart</button>
 		<button id="stop">stop</button>
 		<span>
@@ -35,6 +39,10 @@
 			<input id="fm" type="range" min="1" max="4000" step="1">
 		</span>
 		<span>
+			noise
+			<input id="noise" type="range" min="0" max="1000" step="1">
+		</span>
+		<span>
 			tuning
 			<button id="rnd">rnd</button>
 			<button id="pure">pure</button>
@@ -52,15 +60,21 @@
 			detune
 			<input id="detune" type="range" min="1" max="1000" step="1">
 		</span>
-
+		<span>
+			flutter
+			<input id="flutter" type="range" min="0" max="1000" step="1">
+		</span>
+		<span>
+			space
+			<input id="space" type="range" min="0" max="1000" step="1">
+		</span>
 		<span>
 			tune
 			<input id="tune" type="range" min="1" max="1000" step="1">
 		</span>
-		
 		<span>
 			vol
-			<input id="master" type="range" min="1" max="1000" step="1">
+			<input id="master" type="range" min="0" max="1000" step="1">
 		</span>
 	</div>
 	</body>

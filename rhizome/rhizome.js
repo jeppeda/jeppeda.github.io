@@ -72,64 +72,128 @@ var limiter = ctx.createDynamicsCompressor();
     masterGain.gain.value = 0.99;
     masterGain.connect(limiter); 
 
-//CONSTANTS
-let speed = 10;
-var scale = 1;
-var volume = 40;//8;
-var feedback = 50;
-let zoom = 1;
-var size = 5;
-let rhizomes = [];
-let multiplicities = [];
-let isPaused = false;
-var center = new Position(300,300,0);
-var origin = new Position(0,0,0);
+var pinkNoise = (()=>{
+        var b0, b1, b2, b3, b4, b5, b6;
+        b0 = b1 = b2 = b3 = b4 = b5 = b6 = 0.0;
+        var node = ctx.createScriptProcessor(4096, 1, 1);
+        node.onaudioprocess = function(e) {
+            var output = e.outputBuffer.getChannelData(0);
+            for (var i = 0; i < 4096; i++) {
+                var white = Math.random() * 2 - 1;
+                b0 = 0.99886 * b0 + white * 0.0555179;
+                b1 = 0.99332 * b1 + white * 0.0750759;
+                b2 = 0.96900 * b2 + white * 0.1538520;
+                b3 = 0.86650 * b3 + white * 0.3104856;
+                b4 = 0.55000 * b4 + white * 0.5329522;
+                b5 = -0.7616 * b5 - white * 0.0168980;
+                output[i] = b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362;
+                output[i] *= 0.11; // (roughly) compensate for gain
+                b6 = white * 0.115926;
+            }
+        }
+        return node;
+    })();
+    let noiseLevel = ctx.createGain();
+    noiseLevel.gain.value = 0;
+    noiseLevel.connect(masterGain);
+    pinkNoise.connect(noiseLevel);
 
-let tunings = {
-    rnd: 'rnd',
-    pure: 'pure',
-    pythagorean: 'pythagorean',
-    quarterTone: 'quarterTone',
-    regular: 'regular',
-    minor: 'minor',
-    tetrachord: 'tetrachord',
-    hijaz: 'hijaz',
-    jin: 'jin',
-    phrygian: 'phrygian',
-    penta: 'penta',
-}
-let waves = {
-    sin: 'sine',
-    tri: 'sine',
-    saw: 'sawtooth',
-    sqr: 'square'
-}
+    let delay1 = ctx.createDelay(100);
+    let delay2 = ctx.createDelay(100);
+    let delay3 = ctx.createDelay(100);
+    let delayFeedback = ctx.createGain();
+    let delayBypass = ctx.createGain();
+    let spaceGain = ctx.createGain();
+        delay1.delayTime.value = 1+Math.random();
+        delay2.delayTime.value = Math.random();
+        delay3.delayTime.value = 3*Math.random();
+        delayFeedback.gain.value = 0.3;
+        delayBypass.gain.value = 1;
+        masterGain.connect(delay1);
+        masterGain.connect(delay2);
+        masterGain.connect(delay2);
+        delay1.connect(delayFeedback);
+        delay2.connect(delayFeedback);
+        delay3.connect(delayFeedback);
+        delayFeedback.connect(delay1);
+        delayFeedback.connect(delay2);
+        delayFeedback.connect(delay3);
+        delay1.connect(delayBypass);
+        delay2.connect(delayBypass);
+        delay3.connect(delayBypass);
+        delayBypass.connect(spaceGain);
+        spaceGain.connect(ctx.destination);
 
-let wave = new Setting('wave', 'sin');
-let tuning = new Setting('tuning', 'rnd');
-let lopass = new Setting('lopass', '330');
-let tune = new Setting('tune', '376');
-let detune = new Setting('detune', '100');
-let number = new Setting('number', '5');
-let gravity = new Setting('gravity', '30');
-let fm = new Setting('fm', '160');
-let master = new Setting('master', '300');
+/***CONSTANTS
+    *********/
+    let speed = 10;
+    var scale = 1;
+    var volume = 40;//8;
+    var feedback = 50;
+    let zoom = 1;
+    var size = 5;
+    let rhizomes = [];
+    let multiplicities = [];
+    let isPaused = false;
+    let isArp = false;
+    var center = new Position(300,300,0);
+    var origin = new Position(0,0,0);
 
-//tunings
-let frequencyMax = tune.get();
-let pure = _pure(frequencyMax);
-let pythagorean = _pythagorean(frequencyMax);
-let quarterTone = _quarterTone(frequencyMax);
-let regular = _regular(frequencyMax);
-let minor = _minor(frequencyMax);
-let tetrachord = _tetrachord(frequencyMax);
-let hijaz = _hijaz(frequencyMax);
-let jin = _jin(frequencyMax);
-let phrygian = _phrygian(frequencyMax);
-let penta = _penta(frequencyMax);
+/***MODES
+    *****/
+    let tunings = {
+        rnd: 'rnd',
+        pure: 'pure',
+        pythagorean: 'pythagorean',
+        quarterTone: 'quarterTone',
+        regular: 'regular',
+        minor: 'minor',
+        tetrachord: 'tetrachord',
+        hijaz: 'hijaz',
+        jin: 'jin',
+        phrygian: 'phrygian',
+        penta: 'penta',
+    }
+    let waves = {
+        sin: 'sine',
+        tri: 'sine',
+        saw: 'sawtooth',
+        sqr: 'square'
+    }
+
+/***SETTINGS
+    ********/
+    let wave = new Setting('wave', 'sin');
+    let tuning = new Setting('tuning', 'rnd');
+    let arp = new Setting('arp', '0');
+    let lopass = new Setting('lopass', '330');
+    let tune = new Setting('tune', '376');
+    let detune = new Setting('detune', '0');
+    let flutter = new Setting('flutter', '0');
+    let space = new Setting('space', '0');
+    let number = new Setting('number', '5');
+    let gravity = new Setting('gravity', '30');
+    let fm = new Setting('fm', '160');
+    let noise = new Setting('noise', '10');
+    let master = new Setting('master', '300');
+
+/***TUNINGS
+    *******/
+    let frequencyMax = tune.get();
+    let pure = _pure(frequencyMax);
+    let pythagorean = _pythagorean(frequencyMax);
+    let quarterTone = _quarterTone(frequencyMax);
+    let regular = _regular(frequencyMax);
+    let minor = _minor(frequencyMax);
+    let tetrachord = _tetrachord(frequencyMax);
+    let hijaz = _hijaz(frequencyMax);
+    let jin = _jin(frequencyMax);
+    let phrygian = _phrygian(frequencyMax);
+    let penta = _penta(frequencyMax);
+
 
 class Rhizome {
-    constructor(position,direction, still) {
+    constructor(position,direction) {
         this.identity = Math.random();
         this.position = position, 
         this.connections = [], this.lines = [];
@@ -137,37 +201,42 @@ class Rhizome {
         this.energy = 1;
         this.clock = 0;
         this.direction = new Velocity(0,0,0);
-        this.still = still;
+        this.initialize();
+        this.setFeedback();
+        this.initFrequency();
+        this.setLopass();
+        this.detune(0);
+        this.setType(waves[wave.get()]);
+        this.setGain();
+        this.setPan();    
+        this.setFlutter();    
+    }
+    initialize() {
         this.feedback = ctx.createGain();
         this.oscillator = ctx.createOscillator();
             this.oscillator.frequency.value = this.frequency; 
         this.subOscillator = ctx.createOscillator();
             this.subOscillator.frequency.value = this.frequency+this.identity*2-1; 
-        this.setType(waves[wave.get()]);
         this.gain = ctx.createGain();
             this.gain.gain.value = 0;
-        this.setGain();
         this.filter = ctx.createBiquadFilter();
             this.filter.type = "lowpass";
             this.filter.gain.setTargetAtTime(2, ctx.currentTime + 1, 0.5);
         this.pan = ctx.createStereoPanner();
-        this.setPan();
-        
+        this.lfo = ctx.createOscillator();
+            this.lfo.frequency.value = this.identity;
+            this.flutter = ctx.createGain();
+            this.flutter.gain.value = 10;
+            this.lfo.connect(this.flutter)
         this.oscillator.connect(this.gain);
         this.subOscillator.connect(this.gain);
+        this.flutter.connect(this.oscillator.frequency);
         this.gain.connect(this.filter);
         this.filter.connect(this.pan);
         this.pan.connect(masterGain);
-        this.setFeedback();
-        this.initFrequency();
-        this.setLopass();
         this.oscillator.start();
         this.subOscillator.start();
-
-        this.detune(0);
-        this.setPan();
-
-        this.draw();    
+        this.lfo.start();
     }
     get multiplicity() {
         return this.connections.length + 1;
@@ -189,13 +258,18 @@ class Rhizome {
     }
     setLopass() {
         //this.filter.frequency.value = 200 * this.identity + (this.frequency * (parseInt(lopass.get()) /1000))*6;
-        this.filter.frequency.setValueAtTime(200 * this.identity + (this.frequency * (parseInt(lopass.get()) /1000))*6, ctx.currentTime);
+        this.filter.frequency.setValueAtTime(200 * this.identity + (this.frequency * (parseInt(lopass.get()) /1000))*6, ctx.currentTime+0.5);
     }
     setPan() {
         this.pan.pan.setValueAtTime( 
             (this.position.x - center.x)/200 < -1 ? -1 : 
             (this.position.x - center.x)/200 > 1 ? 1 : 
             (this.position.x - center.x)/200 ,ctx.currentTime
+        );
+    }
+    setFlutter() {
+        this.flutter.gain.setValueAtTime( 
+            flutter.get()/100,ctx.currentTime
         );
     }
     detune(amount) {
@@ -251,7 +325,7 @@ class Rhizome {
             });
         }
         if(this.direction.x !== 0) {
-            if(!this.still){
+            if(!this.dead){
                 this.position.add(this.direction);
                 this.move(this.position);
             }
@@ -288,7 +362,7 @@ class Rhizome {
         } 
     }
     move(position) {
-        if(!this.still) {this.position = position;}
+        if(!this.dead) {this.position = position;}
         this.setGain();
         this.setFeedback();
         this.connections.forEach(function(connection) {
@@ -296,7 +370,7 @@ class Rhizome {
         }); 
     }
     draw() {
-        if (this.still){return;}
+        if (this.dead){return;}
         this.clock++;
         if(this.circle) {
             this.circle.x(origin.x + this.position.x/zoom).y(origin.y + this.position.y/zoom);
@@ -308,7 +382,7 @@ class Rhizome {
         }
     }
     vibrate() {
-        if(this.still){return;}
+        if(this.dead){return;}
         let self = this;
         var E = 10;
         var amountSlow = 0.001;
@@ -320,8 +394,8 @@ class Rhizome {
                 rhizome.energy += (E/self.position.distance(rhizome.position));
                 self.energy -= (E/self.position.distance(rhizome.position))/self.multiplicity
             }
-        } else if(self.position.x === rhizome.position.x && self.position.y === rhizome.position.y && self.energy > 3000 && !self.still) {
-            self.still = true;
+        } else if(self.position.x === rhizome.position.x && self.position.y === rhizome.position.y && self.energy > 3000 && !self.dead) {
+            self.dead = true;
             newRhizomes = true;
             oldRhizome = y;
         }
@@ -399,12 +473,17 @@ function initializeSettings() {
     $('lopass').value = lopass.get();
     $('tune').value = tune.get();
     $('detune').value = detune.get();
+    $('flutter').value = flutter.get();
+    $('space').value = space.get();
     $('fm').value = fm.get();
+    $('noise').value = noise.get();
     $('master').value = master.get();
+    $('arp').value = arp.get();
     setVolume(master.get());
     setSelectedWave();
     setSelectedTuning();
     setDetune()
+    setSpace()
 }
 
 function setSelectedWave() {
@@ -426,8 +505,20 @@ function setVolume(volume) {
     masterGain.gain.value = volume/1000;
 }
 
+function setNoise(haha) {
+    noiseLevel.gain.setTargetAtTime(noise.get()/2000, ctx.currentTime + 0.5, 0.5);;
+}
+
+function setSpace(haha) {
+    spaceGain.gain.setTargetAtTime(space.get()/2000, ctx.currentTime + 0.5, 0.5);;
+}
+
 function setDetune() {
     rhizomes.forEach(rhizome => rhizome.detune(detune.get()));
+}
+
+function setFlutter() {
+    rhizomes.forEach(rhizome => rhizome.setFlutter());
 }
 
 function step() {
@@ -487,6 +578,34 @@ window.onload=function() {
                 isPaused = false;
             }
     };
+    var t;
+    setInterval(()=>{
+        if(!isArp || arp.get() !== "1"){return;}
+        t=!t;
+        if(!t) {
+            setVolume(0);
+        } else {
+            setVolume(master.get());
+        }
+    },100);
+    setInterval(()=>{
+        if(!isArp || arp.get() !== "2"){return;}
+        t=!t;
+        if(!t) {
+            setVolume(0);
+        } else {
+            setVolume(master.get());
+        }
+    },50);
+    setInterval(()=>{
+        if(!isArp || arp.get() !== "3"){return;}
+        t=!t;
+        if(!t) {
+            setVolume(0);
+        } else {
+            setVolume(master.get());
+        }
+    },25);
 
     for(key in waves) {
         $(key).onclick = e => {
@@ -511,13 +630,41 @@ window.onload=function() {
         detune.set($('detune').value/1000);
         setDetune();
     };
+    $('flutter').oninput = () => {
+        flutter.set($('flutter').value);
+        setFlutter();
+    };
     $('number').oninput = () => number.set($('number').value);
     $('gravity').oninput = () => gravity.set($('gravity').value);
     $('fm').oninput = () => fm.set($('fm').value);
+    $('noise').oninput = () => {
+        noise.set($('noise').value);
+        setNoise();
+    };
+    $('space').oninput = () => {
+        space.set($('space').value);
+        setSpace();
+    };
     $('master').oninput = () => {
         master.set($('master').value); 
         isPaused = false;
         setVolume(master.get());
+    }
+    function setArp() {
+        if(arp.get() !== "0") {
+            isArp = true;
+        } else {
+            isArp=false;
+            isPaused=false;
+            setVolume(master.get());
+        }
+    }
+    setArp();
+    setNoise();
+    setSpace();
+    $('arp').oninput = () => {
+        arp.set($('arp').value); 
+        setArp();
     }
 
     window.addEventListener('wheel', function(e) {
