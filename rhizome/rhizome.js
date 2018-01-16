@@ -536,7 +536,7 @@ function createRhizomes() {
                     Math.round(Math.random()*window.innerWidth/1.5)+10+window.innerWidth/8,
                     Math.round(Math.random()*window.innerHeight/1.5)+10+window.innerHeight/8,0
                 ),
-                new Velocity(1,2,0),
+                new Velocity(0,0,0),
                 i === 0
             ));
         }
@@ -560,7 +560,7 @@ function createRhizomes() {
                     0
                 ),
                 positioning.is("2") ? new Velocity(Math.random()*2-1,Math.random()*2-1,0) : new Velocity(0,0,0),
-                positioning.is("2") ? 1 : 0
+                positioning.is("2") ? 0.1 : 0
             ));
         }
     }
