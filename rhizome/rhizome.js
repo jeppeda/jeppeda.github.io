@@ -22,7 +22,6 @@ class Setting {
         return this.setting === value;
     }
 }
-
 class Position {
     constructor(x,y,z) {
         this.x = x;
@@ -58,9 +57,10 @@ class Velocity extends Position {
     }
 }
 
-var ctx = new (window.AudioContext || window.webkitAudioContext)();
-
-var limiter = ctx.createDynamicsCompressor();
+/***AUDIO
+    *****/
+    var ctx = new (window.AudioContext || window.webkitAudioContext)();
+    var limiter = ctx.createDynamicsCompressor();
     limiter.threshold.value = 0.0; // this is the pitfall, leave some headroom
     limiter.knee.value = 0.0; // brute force
     limiter.ratio.value = 20.0; // max compression
@@ -68,11 +68,11 @@ var limiter = ctx.createDynamicsCompressor();
     limiter.release.value = 0.050; // 50ms release
     limiter.connect(ctx.destination);
 
- var masterGain = ctx.createGain();
+    var masterGain = ctx.createGain();
     masterGain.gain.value = 0.99;
     masterGain.connect(limiter); 
 
-var pinkNoise = (()=>{
+    var pinkNoise = (()=>{
         var b0, b1, b2, b3, b4, b5, b6;
         b0 = b1 = b2 = b3 = b4 = b5 = b6 = 0.0;
         var node = ctx.createScriptProcessor(4096, 1, 1);
@@ -87,7 +87,7 @@ var pinkNoise = (()=>{
                 b4 = 0.55000 * b4 + white * 0.5329522;
                 b5 = -0.7616 * b5 - white * 0.0168980;
                 output[i] = b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362;
-                output[i] *= 0.11; // (roughly) compensate for gain
+                output[i] *= 0.11;
                 b6 = white * 0.115926;
             }
         }
@@ -124,7 +124,7 @@ var pinkNoise = (()=>{
         delayBypass.connect(spaceGain);
         spaceGain.connect(ctx.destination);
 
-/***CONSTANTS
+/***VARIABLES
     *********/
     let speed = 10;
     var scale = 1;
@@ -136,6 +136,7 @@ var pinkNoise = (()=>{
     let multiplicities = [];
     let isPaused = false;
     let isArp = false;
+    var tArp = true;
     var center = new Position(300,300,0);
     var origin = new Position(0,0,0);
 
@@ -176,6 +177,12 @@ var pinkNoise = (()=>{
     let fm = new Setting('fm', '160');
     let noise = new Setting('noise', '10');
     let master = new Setting('master', '300');
+    let follow = new Setting('follow', '1');
+    let tail = new Setting('tail', '0');
+    let massive = new Setting('massive', "0");
+    let connecting = new Setting('connecting', "1");
+    let lines = new Setting('lines', "1");
+    let positioning = new Setting('positioning', "0");
 
 /***TUNINGS
     *******/
@@ -191,16 +198,18 @@ var pinkNoise = (()=>{
     let phrygian = _phrygian(frequencyMax);
     let penta = _penta(frequencyMax);
 
-
+/***CLASS */
 class Rhizome {
-    constructor(position,direction) {
+    constructor(position,direction, mass) {
         this.identity = Math.random();
         this.position = position, 
-        this.connections = [], this.lines = [];
+        this.connections = [],
         this.frequency = 0;
         this.energy = 1;
         this.clock = 0;
-        this.direction = new Velocity(0,0,0);
+        this.direction = direction;
+        this.path = [];
+        this.connectionLine = [];
         this.initialize();
         this.setFeedback();
         this.initFrequency();
@@ -209,7 +218,8 @@ class Rhizome {
         this.setType(waves[wave.get()]);
         this.setGain();
         this.setPan();    
-        this.setFlutter();    
+        this.setFlutter();
+        this.iniMass = mass;
     }
     initialize() {
         this.feedback = ctx.createGain();
@@ -243,6 +253,9 @@ class Rhizome {
     }
     get lastConnection() {
         return this.connections[this.connections.length-1]
+    }
+    get mass() {
+        return 1 * this.identity + this.iniMass;// /(this.identity*1000);// + this.iniMass;
     }
     setType(type) {
         this.oscillator.type = type;
@@ -307,7 +320,7 @@ class Rhizome {
         let self = this;
         if(this.connections.length > 0) {
             this.connections.forEach(function(connection) {
-                self.attract(connection, true);
+                self.attract(connection, connecting.is("1"));
             });
             rhizomes.forEach(function(rhizome) {
                 if(self.multiplicity != rhizome.multiplicity && !rhizome.dead) {
@@ -335,12 +348,13 @@ class Rhizome {
         var distance = this.position.distance(attractor.position);
         if(distance > 4*size) {
             var distanceVector = this.position.distanceVector(attractor.position);
+            var mass = massive.is("1") ? attractor.mass/this.mass : 1;
             this.direction.subtract(new Velocity(       
-                distanceVector.x*(1/(connected ? gravity.get() / Math.PI : gravity.get()))/Math.pow(distance,2)*(1+(this.energy/100000)),
-                distanceVector.y*(1/(connected ? gravity.get() / Math.PI : gravity.get()))/Math.pow(distance,2)*(1+this.energy/100000),
-                distanceVector.z*(1/(connected ? gravity.get() / Math.PI : gravity.get()))/Math.pow(distance,2)*(1+this.energy/100000)
+                distanceVector.x*(mass/(connected ? gravity.get() / Math.PI : gravity.get()))/Math.pow(distance,2)*(1+(this.energy/100000)),
+                distanceVector.y*(mass/(connected ? gravity.get() / Math.PI : gravity.get()))/Math.pow(distance,2)*(1+this.energy/100000),
+                distanceVector.z*(mass/(connected ? gravity.get() / Math.PI : gravity.get()))/Math.pow(distance,2)*(1+this.energy/100000)
             ));
-            if(this.direction.distance(new Velocity(0,0,0)) > 1) {
+            if(this.direction.distance(new Velocity(0,0,0)) > 10) {
                 this.direction.slow(0.4);
             }
         }
@@ -349,6 +363,11 @@ class Rhizome {
         if(this.multiplicity === 1 && rhizome.multiplicity === 1) {
             this.connections.push(rhizome);
             rhizome.connections.push(this);
+
+            this.connectionLine = d.polyline(lines.is("2") ?
+                [[this.position.x, this.position.y],
+                [rhizome.position.x, rhizome.position.y]] : []).fill('none').stroke({width: 0.5});
+
         } else if (this.multiplicity === 1 && rhizome.multiplicity > 1) {
             this.connections.push(rhizome.lastConnection);
             var lastConnection = rhizome.lastConnection;
@@ -359,6 +378,19 @@ class Rhizome {
                 }
             }, this);
             lastConnection.connections.push(this);
+
+            this.connectionLine = d.polyline(lines.is("2") ?
+                [[this.position.x, this.position.y],
+                [rhizome.position.x, rhizome.position.y]] : []).fill('none').stroke({width: 0.5});
+            if(rhizome.connectionLine.length === 0) {
+                rhizome.connectionLine = d.polyline(lines.is("2") ?
+                    [[rhizome.position.x, rhizome.position.y],
+                    [this.position.x, this.position.y]] : []).fill('none').stroke({width: 0.5});
+            } else if(rhizome.connections[0].connectionLine.length === 0) {
+                rhizome.connections[0].connectionLine = d.polyline(lines.is("2") ?
+                    [[rhizome.connections[0].position.x, rhizome.connections[0].position.y],
+                    [this.position.x, this.position.y]] : []).fill('none').stroke({width: 0.5});
+            }
         } 
     }
     move(position) {
@@ -372,13 +404,54 @@ class Rhizome {
     draw() {
         if (this.dead){return;}
         this.clock++;
+        let offset = (size * (massive.is("1") ? this.mass : 1))/2;
         if(this.circle) {
-            this.circle.x(origin.x + this.position.x/zoom).y(origin.y + this.position.y/zoom);
-            if(this.clock % 100 == 0) {
-                this.circle.size(size+this.energy/1000);
+            this.circle
+                .x(origin.x + this.position.x/zoom - offset)
+                .y(origin.y + this.position.y/zoom - offset);
+            if(this.clock % 10 == 0) {
+                this.drawPath();
             }
+            if (lines.is("2")) {
+                this.drawConnections();
+            }
+            
         } else {
-            this.circle = d.circle(size).fill('#000').move(this.position.x/zoom, this.position.y/zoom);
+            this.circle = d.circle(size * (massive.is("1") ? this.mass : 1))
+            .fill('#000').move((origin.x + this.position.x/zoom - offset), 
+            (origin.y + this.position.y/zoom - offset));
+        }
+    }
+    setSize() {
+        this.circle.radius((size * (massive.is("1") ? this.mass : 1))/2);
+    }
+    drawPath(){
+        var gradient = d.gradient('linear', function(stop) {
+            stop.at({ offset: 0, color: '#000', opacity: 0 })
+            stop.at({ offset: 1, color: '#000', opacity: 1 })
+          })
+        if(tail.get() !== "0") {
+            this.path.push([origin.x + this.position.x/zoom, origin.y + this.position.y/zoom]);            
+        }
+        if(this.path.length>3 && !this.pathLine) {
+            this.pathLine = d.polyline(this.path).fill('none').stroke({width: 1});
+        } else if(this.path.length>1 && this.pathLine) {
+            this.pathLine.plot(this.path);
+        }
+        if(this.path.length > tail.get()*100) {
+            this.path.shift();
+        }
+    }
+    drawConnections(){
+        if(this.multiplicity > 1 && !(this.connectionLine.length === 0)) {
+            let plot = [
+                [origin.x + this.position.x/zoom,
+                 origin.y + this.position.y/zoom]];
+            this.connections.forEach(connection => {
+                plot.push([origin.x + connection.position.x/zoom, 
+                            origin.y + connection.position.y/zoom]);
+            })
+            this.connectionLine.plot(plot);
         }
     }
     vibrate() {
@@ -441,12 +514,13 @@ function setCenter() {
     rhizomes.forEach(function(rhizome) {
         if(!rhizome.dead) {
             rhizome.gravitate();
-
             //rhizome.vibrate();
             newCenter.add(rhizome.position);
             rhizome.setPan();
         }
     }, this);
+    //origin.x += (Math.abs(newCenter.x/rhizomes.length - center.x) < 5) ? center.x - newCenter.x/rhizomes.length : origin.x;
+    //origin.y += (Math.abs(newCenter.y/rhizomes.length - center.y) < 5) ? center.y - newCenter.y/rhizomes.length : origin.y;
     center = new Position(
         newCenter.x/rhizomes.length,
         newCenter.y/rhizomes.length,
@@ -455,15 +529,40 @@ function setCenter() {
 }
 
 function createRhizomes() {
-    for(let i = 0; i < number.get(); i++) {
-        rhizomes.push(new Rhizome(
-            new Position(
-                Math.round(Math.random()*window.innerWidth/1.5)+10+window.innerWidth/8,
-                Math.round(Math.random()*window.innerHeight/1.5)+10+window.innerHeight/8,0
-            ),
-            new Velocity(1,2,0),
-            i === 0
-        ));
+    if(positioning.is("0")) {
+        for(let i = 0; i < number.get(); i++) {
+            rhizomes.push(new Rhizome(
+                new Position(
+                    Math.round(Math.random()*window.innerWidth/1.5)+10+window.innerWidth/8,
+                    Math.round(Math.random()*window.innerHeight/1.5)+10+window.innerHeight/8,0
+                ),
+                new Velocity(1,2,0),
+                i === 0
+            ));
+        }
+    } else {
+        if(positioning.is("2")) {
+            rhizomes.push(new Rhizome(
+                new Position(
+                    window.innerWidth/2,
+                    window.innerHeight/2,
+                    0
+                ),
+                new Velocity(0,0,0),
+                6
+            ));
+        }
+        for(let i = 0; i < number.get(); i++) {
+            rhizomes.push(new Rhizome(
+                new Position(
+                    window.innerWidth/2+200*Math.sin(i *(2/number.get()*Math.PI)),
+                    window.innerHeight/2+200*Math.cos(i *(2/number.get()*Math.PI)),
+                    0
+                ),
+                positioning.is("2") ? new Velocity(Math.random()*2-1,Math.random()*2-1,0) : new Velocity(0,0,0),
+                positioning.is("2") ? 1 : 0
+            ));
+        }
     }
 }
 
@@ -479,11 +578,16 @@ function initializeSettings() {
     $('noise').value = noise.get();
     $('master').value = master.get();
     $('arp').value = arp.get();
+    $('tail').value = tail.get();
+    $('lines').value = lines.get();
+    $('positioning').value = positioning.get();
+    $('massive').value = massive.get();
     setVolume(master.get());
     setSelectedWave();
     setSelectedTuning();
     setDetune()
     setSpace()
+    
 }
 
 function setSelectedWave() {
@@ -522,7 +626,7 @@ function setFlutter() {
 }
 
 function step() {
-    if(isPaused) {return;};
+    if(isPaused || !tArp) {return;};
     setCenter();
     draw();
 }
@@ -539,13 +643,13 @@ window.onload=function() {
     $('screen').ondblclick = (e) => {
         var cX = event.clientX, cY = event.clientY;
         var newRhizome = new Rhizome(
-            new Position((cX-size/2 - origin.x)*zoom,(cY-size/2 - origin.y)*zoom,0)
+            new Position(cX*zoom- 1*origin.x*zoom, cY*zoom- 1*origin.y*zoom,0)
         ); 
         rhizomes.push(newRhizome);          
     };
 
     var tempPosition = null;
-    $('screen').onmousedown = e => {
+     $('screen').onmousedown = e => {
         tempPosition = {
             x: e.screenX,
             y: e.screenY
@@ -555,7 +659,7 @@ window.onload=function() {
         origin.x = origin.x + e.screenX - tempPosition.x;
         origin.y = origin.y + e.screenY - tempPosition.y;
         tempPosition = null;
-    };
+    }; 
     $('screen').onmousemove = e => {
         if(tempPosition) {
             origin.x = origin.x + e.screenX - tempPosition.x;
@@ -568,6 +672,15 @@ window.onload=function() {
     $('restart').onclick = () => {     
         location.reload();
     };
+    let show = true;
+    $('show-hide-button').onclick = () => {
+        show=!show;
+        if(show) {
+            $('settings').classList.remove('hide');
+        } else {
+            $('settings').classList.add('hide');
+        } 
+    };
  
     $('stop').onclick = () => {     
             if(!isPaused) {
@@ -578,34 +691,34 @@ window.onload=function() {
                 isPaused = false;
             }
     };
-    var t;
+    
     setInterval(()=>{
         if(!isArp || arp.get() !== "1"){return;}
-        t=!t;
-        if(!t) {
+        tArp=!tArp;
+        if(!tArp || isPaused) {
+            setVolume(0);
+        } else {
+            setVolume(master.get());
+        }
+    },200);
+    setInterval(()=>{
+        if(!isArp || arp.get() !== "2"){return;}
+        tArp=!tArp;
+        if(!tArp || isPaused) {
             setVolume(0);
         } else {
             setVolume(master.get());
         }
     },100);
     setInterval(()=>{
-        if(!isArp || arp.get() !== "2"){return;}
-        t=!t;
-        if(!t) {
+        if(!isArp || arp.get() !== "3"){return;}
+        tArp=!tArp;
+        if(!tArp || isPaused) {
             setVolume(0);
         } else {
             setVolume(master.get());
         }
     },50);
-    setInterval(()=>{
-        if(!isArp || arp.get() !== "3"){return;}
-        t=!t;
-        if(!t) {
-            setVolume(0);
-        } else {
-            setVolume(master.get());
-        }
-    },25);
 
     for(key in waves) {
         $(key).onclick = e => {
@@ -637,6 +750,31 @@ window.onload=function() {
     $('number').oninput = () => number.set($('number').value);
     $('gravity').oninput = () => gravity.set($('gravity').value);
     $('fm').oninput = () => fm.set($('fm').value);
+    $('tail').oninput = () => tail.set($('tail').value);
+    $('massive').oninput = () => {
+        massive.set($('massive').value);
+        rhizomes.forEach(rhizome => {
+            rhizome.setSize();
+        });
+    }
+    $('positioning').oninput = () => {
+        positioning.set($('positioning').value);
+    }
+    $('lines').oninput = () => {
+        lines.set($('lines').value);
+        if(lines.is("1")) {
+            connecting.set("1");
+            
+        }
+        if(lines.is("0") || lines.is("1")) {
+            connecting.set("0");
+            rhizomes.forEach(rhizome => {
+                if(!(rhizome.connectionLine.length === 0)) {
+                    rhizome.connectionLine.plot();
+                }
+            });
+        }
+    };
     $('noise').oninput = () => {
         noise.set($('noise').value);
         setNoise();
@@ -656,6 +794,7 @@ window.onload=function() {
         } else {
             isArp=false;
             isPaused=false;
+            tArp=true;
             setVolume(master.get());
         }
     }
@@ -669,9 +808,29 @@ window.onload=function() {
 
     window.addEventListener('wheel', function(e) {
         if (e.deltaY < 0) {
-            zoom+=e.deltaY/100;
+
+            //before
+            let beforeX = center.x/zoom;
+            let beforeY = center.y/zoom;
+
+            zoom+=(e.deltaY/250)*zoom;
+
+            let afterX = center.x/zoom;
+            let afterY = center.y/zoom;
+
+            origin.x = origin.x - (afterX-beforeX);
+            origin.y = origin.y - (afterY-beforeY);
         } else if (e.deltaY > 0) {
-            zoom+=e.deltaY/100;
+            let beforeX = center.x/zoom;
+            let beforeY = center.y/zoom;
+
+            zoom+=(e.deltaY/250)*zoom;
+
+            let afterX = center.x/zoom;
+            let afterY = center.y/zoom;
+
+            origin.x = origin.x - (afterX-beforeX);
+            origin.y = origin.y - (afterY-beforeY);
         }
     });
 };

@@ -8,13 +8,29 @@
 	</head>
 	<body>
 	<div id="screen"></div>
-	<div class="settings">
+	<div id="settings">
 		<span class="toggle">
 			arp
 			<input id="arp" type="range" min="0" max="3" step="1">
 		</span>
 		<button id="restart">restart</button>
 		<button id="stop">stop</button>
+		<span class="toggle">
+			position
+			<input id="positioning" type="range" min="0" max="2" step="1">
+		</span>
+		<span class="toggle on-off">
+			mass
+			<input id="massive" type="range" min="0" max="1" step="1">
+		</span>
+		<span class="toggle">
+			connect
+			<input id="lines" type="range" min="0" max="2" step="1">
+		</span>
+		<span class="toggle">
+			tail
+			<input id="tail" type="range" min="0" max="3" step="1">
+		</span>
 		<span>
 			number
 			<input id="number" type="range" min="1" max="65" step="1">
@@ -45,16 +61,16 @@
 		<span>
 			tuning
 			<button id="rnd">rnd</button>
+			<button id="minor">minor</button>
 			<button id="pure">pure</button>
 			<button id="pythagorean">pythagorean</button>
 			<button id="quarterTone">quarter tone</button>
 			<button id="regular">regular</button>
-			<button id="minor">minor</button>
-			<button id="tetrachord">tetrachord</button>
 			<button id="hijaz">hijaz</button>
-			<button id="jin">jin</button>
+			<button id="tetrachord">tetrachord</button>
 			<button id="phrygian">phrygian</button>
 			<button id="penta">penta</button>
+			<button id="jin">jin</button>
 		</span>
 		<span>
 			detune
@@ -76,6 +92,9 @@
 			vol
 			<input id="master" type="range" min="0" max="1000" step="1">
 		</span>
+	</div>
+	<div id="show-hide">
+		<button id="show-hide-button"></button>
 	</div>
 	</body>
 </html>

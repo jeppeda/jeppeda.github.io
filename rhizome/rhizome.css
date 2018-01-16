@@ -27,18 +27,15 @@ input[type=range] {
 input[type=checkbox] {
     display: inline;
 }
-.settings {
+#settings {
     position:fixed; 
     left: 0; 
     bottom: 0;
     width: 150px;
     text-align: right;
 }
-.settings>span {
+#settings>span {
     display: inline-block;
-    
-}
-.settings>span>input {
     
 }
 button {
@@ -82,10 +79,11 @@ input[type=range]:hover::-webkit-slider-runnable-track {
 input[type=range]::-webkit-slider-thumb {
     -webkit-appearance: none;
     background-color:transparent;
-    border: 1px solid #ccc;
+    border: 1px solid #aaa;
     height: 10px;
     width: 10px;
     border-radius: 50%;
+    box-shadow: 0;
 }
 input[type=range]:hover::-webkit-slider-thumb {
     -webkit-appearance: none;
@@ -101,5 +99,26 @@ input[type=range]:hover::-webkit-slider-thumb {
     
 }
 .toggle input {
-    width: 50px;
+    width: 40px;
+}
+.on-off input {
+    width: 20px;
+}
+#show-hide {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+}
+#show-hide-button {
+    background-color: #fff;
+    height: 5px;
+    width: 5px;
+    border: 2px solid #aaa;
+    border-radius: 50%;
+}
+#show-hide-button:hover {
+    border: 2px solid #202020;
+}
+.hide {
+    display: none;
 }
