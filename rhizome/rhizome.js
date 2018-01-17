@@ -131,7 +131,7 @@ class Velocity extends Position {
     var volume = 40;//8;
     var feedback = 50;
     let zoom = 1;
-    var size = 5;
+    var size = 3;
     let rhizomes = [];
     let multiplicities = [];
     let isPaused = false;
@@ -139,6 +139,7 @@ class Velocity extends Position {
     var tArp = true;
     var center = new Position(300,300,0);
     var origin = new Position(0,0,0);
+    var mousePosition = null;
 
 /***MODES
     *****/
@@ -183,6 +184,9 @@ class Velocity extends Position {
     let connecting = new Setting('connecting', "1");
     let lines = new Setting('lines', "1");
     let positioning = new Setting('positioning', "0");
+    let sub = new Setting('sub', "0");
+    let subFeedback = new Setting('subFeedback', "0");
+    let force = new Setting('force', "1");
 
 /***TUNINGS
     *******/
@@ -212,6 +216,8 @@ class Rhizome {
         this.connectionLine = [];
         this.initialize();
         this.setFeedback();
+        this.setSub();
+        this.setSubFeedback();
         this.initFrequency();
         this.setLopass();
         this.detune(0);
@@ -219,14 +225,21 @@ class Rhizome {
         this.setGain();
         this.setPan();    
         this.setFlutter();
+        this.draw();
+        this.drawPath();
         this.iniMass = mass;
+        this.setSize();
+        
     }
     initialize() {
         this.feedback = ctx.createGain();
         this.oscillator = ctx.createOscillator();
             this.oscillator.frequency.value = this.frequency; 
+        this.uniOscillator = ctx.createOscillator();
+            this.uniOscillator.frequency.value = this.frequency+this.identity*2-1;
         this.subOscillator = ctx.createOscillator();
-            this.subOscillator.frequency.value = this.frequency+this.identity*2-1; 
+            this.subOscillator.frequency.value = this.frequency/2;  
+            
         this.gain = ctx.createGain();
             this.gain.gain.value = 0;
         this.filter = ctx.createBiquadFilter();
@@ -238,13 +251,24 @@ class Rhizome {
             this.flutter = ctx.createGain();
             this.flutter.gain.value = 10;
             this.lfo.connect(this.flutter)
+
         this.oscillator.connect(this.gain);
-        this.subOscillator.connect(this.gain);
+        this.uniOscillator.connect(this.gain);        
+        this.subGain = ctx.createGain();
+        this.subGain.gain.value = 0;
+        this.subOscillator.connect(this.subGain);
+        this.subFeedback = ctx.createGain();
+        this.subOscillator.connect(this.subFeedback)
+        this.uniOscillator.connect(this.subFeedback)
+        this.subFeedback.connect(this.oscillator.frequency);
+
         this.flutter.connect(this.oscillator.frequency);
         this.gain.connect(this.filter);
+        this.subGain.connect(this.filter);
         this.filter.connect(this.pan);
         this.pan.connect(masterGain);
         this.oscillator.start();
+        this.uniOscillator.start();
         this.subOscillator.start();
         this.lfo.start();
     }
@@ -257,17 +281,28 @@ class Rhizome {
     get mass() {
         return 1 * this.identity + this.iniMass;// /(this.identity*1000);// + this.iniMass;
     }
+    get size() {
+        return ((size * (massive.is("1") ? this.mass : 1)))/zoom;
+    }
     setType(type) {
         this.oscillator.type = type;
+        this.uniOscillator.type = type;
         this.subOscillator.type = type;
     }
     setFreq(freq) {
         this.frequency = freq;
         this.oscillator.frequency.value = freq;
-        this.subOscillator.frequency.value = freq+this.identity*2-1;
+        this.uniOscillator.frequency.value = freq+this.identity*2-1;
+        this.subOscillator.frequency.value = freq/2;
     }
     setGain() {
-        this.gain.gain.setTargetAtTime((volume/(rhizomes.length+1))/(this.position.distance(center)+20), ctx.currentTime + 1, 0.5);
+        this.gain.gain.setTargetAtTime((volume/(rhizomes.length+1))/(this.position.distance(center)+20), ctx.currentTime + 0.5, 0.5);
+    }
+    setSub() {
+        this.subGain.gain.setTargetAtTime(sub.get()/10000, ctx.currentTime + 0.2, 0.5);
+    }
+    setSubFeedback() {
+        this.subFeedback.gain.setTargetAtTime(subFeedback.get()*2, ctx.currentTime + 0.1, 0.5);        
     }
     setLopass() {
         //this.filter.frequency.value = 200 * this.identity + (this.frequency * (parseInt(lopass.get()) /1000))*6;
@@ -287,6 +322,7 @@ class Rhizome {
     }
     detune(amount) {
         this.oscillator.detune.setValueAtTime(this.identity * 20 * amount, ctx.currentTime);
+        this.uniOscillator.detune.setValueAtTime(this.identity * 20 * amount, ctx.currentTime);
         this.subOscillator.detune.setValueAtTime(this.identity * 20 * amount, ctx.currentTime);
     }
     initFrequency() {
@@ -305,16 +341,10 @@ class Rhizome {
         );
     }
     setFeedback() {
-        var i = 0;
-        this.connections.forEach(function(connection) {
-            if(this.position.distance(connection.position)*feedback < feedback) {
-                this.feedback.gain.setTargetAtTime(this.position.distance(connection.position)*(fm.get()/50), ctx.currentTime + 1, 0.5);
-            }
-            connection.oscillator.connect(this.feedback)
-            this.feedback.connect(this.oscillator.frequency);
-            i++;
-        }, this);
-        this.filter.gain.setTargetAtTime(2+((this.energy)/200)*fm.get(), ctx.currentTime + 1, 0.5);
+        if(this.connections.length > 0) {
+            this.feedback.gain.setTargetAtTime(this.position.distance(this.connections[0].position)*(fm.get()/2000), ctx.currentTime, 0.5);           
+        }
+        this.filter.gain.setTargetAtTime(2+((this.energy)/200)*fm.get(), ctx.currentTime, 0.5);
     }
     gravitate() {
         let self = this;
@@ -346,7 +376,7 @@ class Rhizome {
     }
     attract(attractor, connected) {     
         var distance = this.position.distance(attractor.position);
-        if(distance > 4*size) {
+        if((force.is("0") && distance > 3*size) || ((!connected && distance > 0.7*size) || distance > 10*size)) {
             var distanceVector = this.position.distanceVector(attractor.position);
             var mass = massive.is("1") ? attractor.mass/this.mass : 1;
             this.direction.subtract(new Velocity(       
@@ -358,15 +388,42 @@ class Rhizome {
                 this.direction.slow(0.4);
             }
         }
+        if(force.is("1") && connected && distance > 12*size) {
+            var distanceVector = this.position.distanceVector(attractor.position);
+            var mass = massive.is("1") ? attractor.mass/this.mass : 1;
+            this.direction.subtract(new Velocity(       
+                distanceVector.x*0.00007,
+                distanceVector.y*0.00007,
+                distanceVector.z*0.00007
+            ));
+            if(distance - 12*size < 0.4 && distance - 12*size > 0.1) {
+                this.direction.slow(0.05);
+            }
+        }
+        if(force.is("1") && connected && distance < 12*size) {
+            var distanceVector = this.position.distanceVector(attractor.position);
+            var mass = massive.is("1") ? attractor.mass/this.mass : 1;
+            this.direction.subtract(new Velocity(       
+                -distanceVector.x*0.0007*(12*size/distance),
+                -distanceVector.y*0.0007*(12*size/distance),
+                -distanceVector.z*0.0001
+            ));
+            if(distance < 0.4*size && distance > 0.3*size) {
+                this.direction.slow(0.01);
+            }
+        }
     }
     connect(rhizome) {
         if(this.multiplicity === 1 && rhizome.multiplicity === 1) {
             this.connections.push(rhizome);
             rhizome.connections.push(this);
 
-            this.connectionLine = d.polyline(lines.is("2") ?
+            this.connectionLine = d.polyline(lines.is("2") || lines.is("3") ?
                 [[this.position.x, this.position.y],
                 [rhizome.position.x, rhizome.position.y]] : []).fill('none').stroke({width: 0.5});
+
+                this.connections[0].oscillator.connect(this.feedback);
+                this.feedback.connect(this.oscillator.frequency);
 
         } else if (this.multiplicity === 1 && rhizome.multiplicity > 1) {
             this.connections.push(rhizome.lastConnection);
@@ -379,15 +436,18 @@ class Rhizome {
             }, this);
             lastConnection.connections.push(this);
 
-            this.connectionLine = d.polyline(lines.is("2") ?
+            this.connections[0].oscillator.connect(this.feedback);
+            this.feedback.connect(this.oscillator.frequency);
+
+            this.connectionLine = d.polyline(lines.is("2") || lines.is("3") ?
                 [[this.position.x, this.position.y],
                 [rhizome.position.x, rhizome.position.y]] : []).fill('none').stroke({width: 0.5});
             if(rhizome.connectionLine.length === 0) {
-                rhizome.connectionLine = d.polyline(lines.is("2") ?
+                rhizome.connectionLine = d.polyline(lines.is("2") || lines.is("3") ?
                     [[rhizome.position.x, rhizome.position.y],
                     [this.position.x, this.position.y]] : []).fill('none').stroke({width: 0.5});
             } else if(rhizome.connections[0].connectionLine.length === 0) {
-                rhizome.connections[0].connectionLine = d.polyline(lines.is("2") ?
+                rhizome.connections[0].connectionLine = d.polyline(lines.is("2") || lines.is("3") ?
                     [[rhizome.connections[0].position.x, rhizome.connections[0].position.y],
                     [this.position.x, this.position.y]] : []).fill('none').stroke({width: 0.5});
             }
@@ -395,24 +455,28 @@ class Rhizome {
     }
     move(position) {
         if(!this.dead) {this.position = position;}
+        if(this.clock % 100 === 0) {
         this.setGain();
-        this.setFeedback();
-        this.connections.forEach(function(connection) {
-            connection.setFeedback();
-        }); 
+        
+            this.setFeedback();
+        
+            this.connections.forEach(function(connection) {
+                connection.setFeedback();
+            });
+        }
     }
     draw() {
         if (this.dead){return;}
         this.clock++;
-        let offset = (size * (massive.is("1") ? this.mass : 1))/2;
+        let offset = this.size;
         if(this.circle) {
             this.circle
                 .x(origin.x + this.position.x/zoom - offset)
                 .y(origin.y + this.position.y/zoom - offset);
-            if(this.clock % 10 == 0) {
+            if(this.clock % 10 == 0 && this.mass < 5) {
                 this.drawPath();
             }
-            if (lines.is("2")) {
+            if (lines.is("2") || lines.is("3")) {
                 this.drawConnections();
             }
             
@@ -423,18 +487,25 @@ class Rhizome {
         }
     }
     setSize() {
-        this.circle.radius((size * (massive.is("1") ? this.mass : 1))/2);
+        this.circle.radius(this.size);
+        if(this.pathLine) {
+            this.pathLine.stroke({ width: 1 * (massive.is("1") ? this.mass : 1)/2 });
+        }
     }
     drawPath(){
         var gradient = d.gradient('linear', function(stop) {
             stop.at({ offset: 0, color: '#000', opacity: 0 })
             stop.at({ offset: 1, color: '#000', opacity: 1 })
           })
+        if( mousePosition !== null) {
+            this.path = [];
+        }
         if(tail.get() !== "0") {
             this.path.push([origin.x + this.position.x/zoom, origin.y + this.position.y/zoom]);            
         }
         if(this.path.length>3 && !this.pathLine) {
             this.pathLine = d.polyline(this.path).fill('none').stroke({width: 1});
+            this.setSize();
         } else if(this.path.length>1 && this.pathLine) {
             this.pathLine.plot(this.path);
         }
@@ -582,12 +653,14 @@ function initializeSettings() {
     $('lines').value = lines.get();
     $('positioning').value = positioning.get();
     $('massive').value = massive.get();
+    $('sub').value = sub.get();
+    $('subFeedback').value = subFeedback.get();
     setVolume(master.get());
     setSelectedWave();
     setSelectedTuning();
-    setDetune()
-    setSpace()
-    
+    setDetune();
+    setSpace();
+    setConnecting();
 }
 
 function setSelectedWave() {
@@ -625,6 +698,25 @@ function setFlutter() {
     rhizomes.forEach(rhizome => rhizome.setFlutter());
 }
 
+function setConnecting() {
+    if(lines.is("3") ) {
+        force.set("1");
+    }
+    if(lines.is("1") || lines.is("2")) {
+        connecting.set("1");
+        force.set("0");
+    }
+    if(lines.is("0")) {
+        connecting.set("0");
+        force.set("0");
+        rhizomes.forEach(rhizome => {
+            if(!(rhizome.connectionLine.length === 0)) {
+                rhizome.connectionLine.plot();
+            }
+        });
+    }
+}
+
 function step() {
     if(isPaused || !tArp) {return;};
     setCenter();
@@ -643,29 +735,30 @@ window.onload=function() {
     $('screen').ondblclick = (e) => {
         var cX = event.clientX, cY = event.clientY;
         var newRhizome = new Rhizome(
-            new Position(cX*zoom- 1*origin.x*zoom, cY*zoom- 1*origin.y*zoom,0)
+            new Position(cX*zoom- 1*origin.x*zoom, cY*zoom- 1*origin.y*zoom,0),
+            new Velocity(0,0,0),
+            0
         ); 
         rhizomes.push(newRhizome);          
     };
 
-    var tempPosition = null;
      $('screen').onmousedown = e => {
-        tempPosition = {
+        mousePosition = {
             x: e.screenX,
             y: e.screenY
         }
     };
     $('screen').onmouseup = e => {
-        origin.x = origin.x + e.screenX - tempPosition.x;
-        origin.y = origin.y + e.screenY - tempPosition.y;
-        tempPosition = null;
+        origin.x = origin.x + e.screenX - mousePosition.x;
+        origin.y = origin.y + e.screenY - mousePosition.y;
+        mousePosition = null;
     }; 
     $('screen').onmousemove = e => {
-        if(tempPosition) {
-            origin.x = origin.x + e.screenX - tempPosition.x;
-            origin.y = origin.y + e.screenY - tempPosition.y;
-            tempPosition.x = e.screenX;
-            tempPosition.y = e.screenY;
+        if(mousePosition) {
+            origin.x = origin.x + e.screenX - mousePosition.x;
+            origin.y = origin.y + e.screenY - mousePosition.y;
+            mousePosition.x = e.screenX;
+            mousePosition.y = e.screenY;
         }
     };
  
@@ -738,6 +831,14 @@ window.onload=function() {
         lopass.set($('lopass').value);
         rhizomes.forEach(rhizome => rhizome.setLopass());
     };
+    $('sub').oninput = () => {
+        sub.set($('sub').value);
+        rhizomes.forEach(rhizome => rhizome.setSub());
+    };
+    $('subFeedback').oninput = () => {
+        subFeedback.set($('subFeedback').value);
+        rhizomes.forEach(rhizome => rhizome.setSubFeedback());
+    };
     $('tune').oninput = () => tune.set($('tune').value);
     $('detune').oninput = () => {
         detune.set($('detune').value/1000);
@@ -762,18 +863,7 @@ window.onload=function() {
     }
     $('lines').oninput = () => {
         lines.set($('lines').value);
-        if(lines.is("1")) {
-            connecting.set("1");
-            
-        }
-        if(lines.is("0") || lines.is("1")) {
-            connecting.set("0");
-            rhizomes.forEach(rhizome => {
-                if(!(rhizome.connectionLine.length === 0)) {
-                    rhizome.connectionLine.plot();
-                }
-            });
-        }
+        setConnecting();
     };
     $('noise').oninput = () => {
         noise.set($('noise').value);
@@ -832,5 +922,8 @@ window.onload=function() {
             origin.x = origin.x - (afterX-beforeX);
             origin.y = origin.y - (afterY-beforeY);
         }
+        rhizomes.forEach(rhizome => {
+            rhizome.setSize();
+        });
     });
 };

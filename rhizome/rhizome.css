@@ -55,6 +55,7 @@ button:focus {
 }
 input[type=range] {
     -webkit-appearance: none; 
+    -moz-appearance: none; 
     background: white; 
     margin: 0;
     padding: 0;
