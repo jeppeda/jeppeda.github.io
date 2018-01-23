@@ -1,3 +1,4 @@
+'use strict';
 let $ = id => document.getElementById(id);
 
 class Setting {
@@ -140,6 +141,7 @@ class Velocity extends Position {
     var center = new Position(300,300,0);
     var origin = new Position(0,0,0);
     var mousePosition = null;
+    let d;
 
 /***MODES
     *****/
@@ -190,19 +192,18 @@ class Velocity extends Position {
 
 /***TUNINGS
     *******/
-    let frequencyMax = tune.get();
-    let pure = _pure(frequencyMax);
-    let pythagorean = _pythagorean(frequencyMax);
-    let quarterTone = _quarterTone(frequencyMax);
-    let regular = _regular(frequencyMax);
-    let minor = _minor(frequencyMax);
-    let tetrachord = _tetrachord(frequencyMax);
-    let hijaz = _hijaz(frequencyMax);
-    let jin = _jin(frequencyMax);
-    let phrygian = _phrygian(frequencyMax);
-    let penta = _penta(frequencyMax);
+    let freqMax = tune.get();
+    let pure = _pure(freqMax);
+    let pythagorean = _pythagorean(freqMax);
+    let quarterTone = _quarterTone(freqMax);
+    let regular = _regular(freqMax);
+    let minor = _minor(freqMax);
+    let tetrachord = _tetrachord(freqMax);
+    let hijaz = _hijaz(freqMax);
+    let jin = _jin(freqMax);
+    let phrygian = _phrygian(freqMax);
+    let penta = _penta(freqMax);
 
-/***CLASS */
 class Rhizome {
     constructor(position,direction, mass) {
         this.identity = Math.random();
@@ -279,7 +280,7 @@ class Rhizome {
         return this.connections[this.connections.length-1]
     }
     get mass() {
-        return 1 * this.identity + this.iniMass;// /(this.identity*1000);// + this.iniMass;
+        return 1 * this.identity + this.iniMass;
     }
     get size() {
         return ((size * (massive.is("1") ? this.mass : 1)))/zoom;
@@ -376,36 +377,24 @@ class Rhizome {
     }
     attract(attractor, connected) {     
         var distance = this.position.distance(attractor.position);
-        if((force.is("0") && distance > 3*size) || ((!connected && distance > 0.7*size) || distance > 10*size)) {
+        if(distance > 3*size) {
             var distanceVector = this.position.distanceVector(attractor.position);
             var mass = massive.is("1") ? attractor.mass/this.mass : 1;
             this.direction.subtract(new Velocity(       
-                distanceVector.x*(mass/(connected ? gravity.get() / Math.PI : gravity.get()))/Math.pow(distance,2)*(1+(this.energy/100000)),
-                distanceVector.y*(mass/(connected ? gravity.get() / Math.PI : gravity.get()))/Math.pow(distance,2)*(1+this.energy/100000),
-                distanceVector.z*(mass/(connected ? gravity.get() / Math.PI : gravity.get()))/Math.pow(distance,2)*(1+this.energy/100000)
+                distanceVector.x*(mass/(connected ? gravity.get() / Math.PI : gravity.get()))/Math.pow(distance,2),
+                distanceVector.y*(mass/(connected ? gravity.get() / Math.PI : gravity.get()))/Math.pow(distance,2),
+                distanceVector.z*(mass/(connected ? gravity.get() / Math.PI : gravity.get()))/Math.pow(distance,2)
             ));
             if(this.direction.distance(new Velocity(0,0,0)) > 10) {
                 this.direction.slow(0.4);
             }
         }
-        if(force.is("1") && connected && distance > 12*size) {
+        if(force.is("1") && connected && distance < 10*size) {
             var distanceVector = this.position.distanceVector(attractor.position);
             var mass = massive.is("1") ? attractor.mass/this.mass : 1;
             this.direction.subtract(new Velocity(       
-                distanceVector.x*0.00007,
-                distanceVector.y*0.00007,
-                distanceVector.z*0.00007
-            ));
-            if(distance - 12*size < 0.4 && distance - 12*size > 0.1) {
-                this.direction.slow(0.05);
-            }
-        }
-        if(force.is("1") && connected && distance < 12*size) {
-            var distanceVector = this.position.distanceVector(attractor.position);
-            var mass = massive.is("1") ? attractor.mass/this.mass : 1;
-            this.direction.subtract(new Velocity(       
-                -distanceVector.x*0.0007*(12*size/distance),
-                -distanceVector.y*0.0007*(12*size/distance),
+                -distanceVector.x*(mass/(connected ? gravity.get() / Math.PI : gravity.get()))/Math.pow(distance,2),
+                -distanceVector.y*(mass/(connected ? gravity.get() / Math.PI : gravity.get()))/Math.pow(distance,2),
                 -distanceVector.z*0.0001
             ));
             if(distance < 0.4*size && distance > 0.3*size) {
@@ -456,24 +445,21 @@ class Rhizome {
     move(position) {
         if(!this.dead) {this.position = position;}
         if(this.clock % 100 === 0) {
-        this.setGain();
-        
+            this.setGain();
             this.setFeedback();
-        
             this.connections.forEach(function(connection) {
                 connection.setFeedback();
             });
         }
     }
     draw() {
-        if (this.dead){return;}
         this.clock++;
         let offset = this.size;
         if(this.circle) {
             this.circle
                 .x(origin.x + this.position.x/zoom - offset)
                 .y(origin.y + this.position.y/zoom - offset);
-            if(this.clock % 10 == 0 && this.mass < 5) {
+            if(this.clock % 10 === 0 && tail.get() !== "0" && this.mass < 5) {
                 this.drawPath();
             }
             if (lines.is("2") || lines.is("3")) {
@@ -493,16 +479,10 @@ class Rhizome {
         }
     }
     drawPath(){
-        var gradient = d.gradient('linear', function(stop) {
-            stop.at({ offset: 0, color: '#000', opacity: 0 })
-            stop.at({ offset: 1, color: '#000', opacity: 1 })
-          })
         if( mousePosition !== null) {
             this.path = [];
         }
-        if(tail.get() !== "0") {
-            this.path.push([origin.x + this.position.x/zoom, origin.y + this.position.y/zoom]);            
-        }
+        this.path.push([origin.x + this.position.x/zoom, origin.y + this.position.y/zoom]);
         if(this.path.length>3 && !this.pathLine) {
             this.pathLine = d.polyline(this.path).fill('none').stroke({width: 1});
             this.setSize();
@@ -590,8 +570,6 @@ function setCenter() {
             rhizome.setPan();
         }
     }, this);
-    //origin.x += (Math.abs(newCenter.x/rhizomes.length - center.x) < 5) ? center.x - newCenter.x/rhizomes.length : origin.x;
-    //origin.y += (Math.abs(newCenter.y/rhizomes.length - center.y) < 5) ? center.y - newCenter.y/rhizomes.length : origin.y;
     center = new Position(
         newCenter.x/rhizomes.length,
         newCenter.y/rhizomes.length,
@@ -812,7 +790,7 @@ window.onload=function() {
             setVolume(master.get());
         }
     },50);
-
+    let key;
     for(key in waves) {
         $(key).onclick = e => {
             wave.set(e.target.id);
