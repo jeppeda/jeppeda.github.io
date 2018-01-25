@@ -172,7 +172,7 @@ class Velocity extends Position {
     let tuning = new Setting('tuning', 'rnd');
     let arp = new Setting('arp', '0');
     let lopass = new Setting('lopass', '330');
-    let tune = new Setting('tune', '376');
+    let tune = new Setting('tune', '476');
     let detune = new Setting('detune', '0');
     let flutter = new Setting('flutter', '0');
     let space = new Setting('space', '0');
@@ -184,8 +184,8 @@ class Velocity extends Position {
     let follow = new Setting('follow', '1');
     let tail = new Setting('tail', '0');
     let massive = new Setting('massive', "0");
-    let connecting = new Setting('connecting', "1");
-    let lines = new Setting('lines', "1");
+    let connecting = new Setting('connecting', "0");
+    let lines = new Setting('lines', "0");
     let positioning = new Setting('positioning', "0");
     let sub = new Setting('sub', "0");
     let subFeedback = new Setting('subFeedback', "0");
@@ -593,7 +593,7 @@ function setVolume(volume) {
 }
 
 function setNoise() {
-    noiseLevel.gain.setTargetAtTime(noise.get()/2000, ctx.currentTime + 0.5, 0.5);
+    noiseLevel.gain.setTargetAtTime(noise.get()/10000, ctx.currentTime + 0.5, 0.5);
 }
 
 function setSpace() {
