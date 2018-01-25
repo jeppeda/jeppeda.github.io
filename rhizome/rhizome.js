@@ -181,7 +181,6 @@ class Velocity extends Position {
     let fm = new Setting('fm', '160');
     let noise = new Setting('noise', '10');
     let master = new Setting('master', '300');
-    let follow = new Setting('follow', '1');
     let tail = new Setting('tail', '0');
     let massive = new Setting('massive', "0");
     let connecting = new Setting('connecting', "0");
