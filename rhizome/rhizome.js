@@ -60,27 +60,27 @@ class Velocity extends Position {
 
 /***AUDIO
     *****/
-    var ctx = new window.AudioContext();
-    var limiter = ctx.createDynamicsCompressor();
-    limiter.threshold.value = 0.0; // this is the pitfall, leave some headroom
-    limiter.knee.value = 0.0; // brute force
-    limiter.ratio.value = 20.0; // max compression
-    limiter.attack.value = 0.001; // 5ms attack
-    limiter.release.value = 0.050; // 50ms release
+    let ctx = new window.AudioContext();
+    let limiter = ctx.createDynamicsCompressor();
+    limiter.threshold.value = 0.0; 
+    limiter.knee.value = 0.0; 
+    limiter.ratio.value = 20.0; 
+    limiter.attack.value = 0.001; 
+    limiter.release.value = 0.050;
     limiter.connect(ctx.destination);
 
-    var masterGain = ctx.createGain();
+    let masterGain = ctx.createGain();
     masterGain.gain.value = 0.99;
     masterGain.connect(limiter); 
 
-    var pinkNoise = (()=>{
-        var b0, b1, b2, b3, b4, b5, b6;
+    let pinkNoise = (()=>{
+        let b0, b1, b2, b3, b4, b5, b6;
         b0 = b1 = b2 = b3 = b4 = b5 = b6 = 0.0;
-        var node = ctx.createScriptProcessor(4096, 1, 1);
+        let node = ctx.createScriptProcessor(4096, 1, 1);
         node.onaudioprocess = function(e) {
-            var output = e.outputBuffer.getChannelData(0);
-            for (var i = 0; i < 4096; i++) {
-                var white = Math.random() * 2 - 1;
+            let output = e.outputBuffer.getChannelData(0);
+            for (let i = 0; i < 4096; i++) {
+                let white = Math.random() * 2 - 1;
                 b0 = 0.99886 * b0 + white * 0.0555179;
                 b1 = 0.99332 * b1 + white * 0.0750759;
                 b2 = 0.96900 * b2 + white * 0.1538520;
@@ -128,19 +128,20 @@ class Velocity extends Position {
 /***VARIABLES
     *********/
     let speed = 10;
-    var scale = 1;
-    var volume = 40;//8;
-    var feedback = 50;
+    let scale = 1;
+    let volume = 40;//8;
+    let feedback = 50;
     let zoom = 1;
-    var size = 3;
+    let size = 3;
     let rhizomes = [];
     let multiplicities = [];
     let isPaused = false;
     let isArp = false;
-    var tArp = true;
-    var center = new Position(300,300,0);
-    var origin = new Position(0,0,0);
-    var mousePosition = null;
+    let tArp = true;
+    let show = true;
+    let center = new Position(300,300,0);
+    let origin = new Position(0,0,0);
+    let mousePosition = null;
     let d;
 
 /***MODES
@@ -188,51 +189,36 @@ class Velocity extends Position {
     let positioning = new Setting('positioning', "0");
     let sub = new Setting('sub', "0");
     let subFeedback = new Setting('subFeedback', "0");
-    let force = new Setting('force', "1");
 
 /***TUNINGS
     *******/
-    let freqMax = tune.get();
-    let pure = _pure(freqMax);
-    let pythagorean = _pythagorean(freqMax);
-    let quarterTone = _quarterTone(freqMax);
-    let regular = _regular(freqMax);
-    let minor = _minor(freqMax);
-    let tetrachord = _tetrachord(freqMax);
-    let hijaz = _hijaz(freqMax);
-    let jin = _jin(freqMax);
-    let phrygian = _phrygian(freqMax);
-    let penta = _penta(freqMax);
+    let pure = _pure(tune.get());
+    let pythagorean = _pythagorean(tune.get());
+    let quarterTone = _quarterTone(tune.get());
+    let regular = _regular(tune.get());
+    let minor = _minor(tune.get());
+    let tetrachord = _tetrachord(tune.get());
+    let hijaz = _hijaz(tune.get());
+    let jin = _jin(tune.get());
+    let phrygian = _phrygian(tune.get());
+    let penta = _penta(tune.get());
 
 class Rhizome {
-    constructor(position,direction, mass) {
+    constructor(position, direction, initialMass) {
         this.identity = Math.random();
         this.position = position;
+        this.direction = direction;
+        this.initialMass = initialMass;
         this.connections = [];
         this.frequency = 0;
         this.energy = 1;
         this.clock = 0;
-        this.direction = direction;
         this.path = [];
         this.connectionLine = [];
+        this.createAudio();
         this.initialize();
-        this.setFeedback();
-        this.setSub();
-        this.setSubFeedback();
-        this.initFrequency();
-        this.setLopass();
-        this.detune(0);
-        this.setType(waves[wave.get()]);
-        this.setGain();
-        this.setPan();    
-        this.setFlutter();
-        this.draw();
-        this.drawPath();
-        this.iniMass = mass;
-        this.setSize();
-        
     }
-    initialize() {
+    createAudio() {
         this.feedback = ctx.createGain();
         this.oscillator = ctx.createOscillator();
             this.oscillator.frequency.value = this.frequency; 
@@ -273,6 +259,21 @@ class Rhizome {
         this.subOscillator.start();
         this.lfo.start();
     }
+    initialize() {
+        this.setFeedback();
+        this.setSub();
+        this.setSubFeedback();
+        this.initializeFrequency();
+        this.setLopass();
+        this.setDetune();
+        this.setType();
+        this.setGain();
+        this.setPan();    
+        this.setFlutter();
+        this.draw();
+        this.drawPath();
+        this.setSize();
+    }
     get multiplicity() {
         return this.connections.length + 1;
     }
@@ -280,15 +281,15 @@ class Rhizome {
         return this.connections[this.connections.length-1];
     }
     get mass() {
-        return 1 * this.identity + this.iniMass;
+        return 1 * this.identity + this.initialMass;
     }
     get size() {
-        return ((size * (massive.is("1") ? this.mass : 1)))/zoom;
+        return (size * (massive.is("1") ? this.mass : 1))/zoom;
     }
-    setType(type) {
-        this.oscillator.type = type;
-        this.uniOscillator.type = type;
-        this.subOscillator.type = type;
+    setType() {
+        this.oscillator.type = waves[wave.get()];
+        this.uniOscillator.type = waves[wave.get()];
+        this.subOscillator.type = waves[wave.get()];
     }
     setFreq(freq) {
         this.frequency = freq;
@@ -306,7 +307,6 @@ class Rhizome {
         this.subFeedback.gain.setTargetAtTime(subFeedback.get()*2, ctx.currentTime + 0.1, 0.5);        
     }
     setLopass() {
-        //this.filter.frequency.value = 200 * this.identity + (this.frequency * (parseInt(lopass.get()) /1000))*6;
         this.filter.frequency.setValueAtTime(200 * this.identity + (this.frequency * (parseInt(lopass.get()) /1000))*6, ctx.currentTime+0.5);
     }
     setPan() {
@@ -321,12 +321,12 @@ class Rhizome {
             flutter.get()/100,ctx.currentTime
         );
     }
-    detune(amount) {
-        this.oscillator.detune.setValueAtTime(this.identity * 20 * amount, ctx.currentTime);
-        this.uniOscillator.detune.setValueAtTime(this.identity * 20 * amount, ctx.currentTime);
-        this.subOscillator.detune.setValueAtTime(this.identity * 20 * amount, ctx.currentTime);
+    setDetune() {
+        this.oscillator.detune.setValueAtTime(this.identity * 0.1 * detune.get(), ctx.currentTime);
+        this.uniOscillator.detune.setValueAtTime(this.identity * 0.1 * detune.get(), ctx.currentTime);
+        this.subOscillator.detune.setValueAtTime(this.identity * 0.1 * detune.get(), ctx.currentTime);
     }
-    initFrequency() {
+    initializeFrequency() {
         this.setFreq(
             tuning.is('pythagorean') ? pythagorean[Math.floor(Math.random()*(pythagorean.length-1))] :
             tuning.is('pure') ? pure[Math.floor(Math.random()*(pure.length-1))] :
@@ -338,65 +338,49 @@ class Rhizome {
             tuning.is('jin') ? jin[Math.floor(Math.random()*jin.length)] :
             tuning.is('phrygian') ? phrygian[Math.floor(Math.random()*phrygian.length)] :
             tuning.is('penta') ? penta[Math.floor(Math.random()*penta.length)] :
-            Math.round(Math.random()*freqMax)
+            Math.round(Math.random()*tune.get())
         );
     }
     setFeedback() {
         if(this.connections.length > 0) {
             this.feedback.gain.setTargetAtTime(this.position.distance(this.connections[0].position)*(fm.get()/2000), ctx.currentTime, 0.5);           
         }
-        this.filter.gain.setTargetAtTime(2+((this.energy)/200)*fm.get(), ctx.currentTime, 0.5);
     }
     gravitate() {
-        let self = this;
         if(this.connections.length > 0) {
             this.connections.forEach(function(connection) {
-                self.attract(connection, connecting.is("1"));
-            });
+                this.attract(connection, connecting.is("1"));
+            }, this);
             rhizomes.forEach(function(rhizome) {
-                if(self.multiplicity != rhizome.multiplicity && !rhizome.dead) {
-                    self.attract(rhizome, false);
+                if(this.multiplicity != rhizome.multiplicity) {
+                    this.attract(rhizome, false);
                 }   
-            });
+            }, this);
         } else if(rhizomes.length > 1) {
             rhizomes.forEach(function(rhizome) {
-                if(self.position.x !== rhizome.position.x && !rhizome.dead) {
-                    self.attract(rhizome, false);
-                    if(self.position.distance(rhizome.position) < size*4) {
-                        self.connect(rhizome);
+                if(this.position.x !== rhizome.position.x) {
+                    this.attract(rhizome, false);
+                    if(this.position.distance(rhizome.position) < size*4) {
+                        this.connect(rhizome);
                     }
                 }
-            });
+            }, this);
         }
-        if(this.direction.x !== 0) {
-            if(!this.dead){
-                this.position.add(this.direction);
-                this.move(this.position);
-            }
-        }
+        this.position.add(this.direction);
+        this.move(this.position);
     }
     attract(attractor, connected) {     
-        var distance = this.position.distance(attractor.position);
-      	var distanceVector = this.position.distanceVector(attractor.position);
-      	var mass = massive.is("1") ? attractor.mass/this.mass : 1;
-        if(distance > 3*size) {
+        let distance = this.position.distance(attractor.position);
+        let distanceVector = this.position.distanceVector(attractor.position);
+        let massScalar = massive.is("1") ? attractor.mass/this.mass : 1;
+        if(distance > 4*size) {
             this.direction.subtract(new Velocity(       
-                distanceVector.x*(mass/(connected ? gravity.get() / Math.PI : gravity.get()))/Math.pow(distance,2),
-                distanceVector.y*(mass/(connected ? gravity.get() / Math.PI : gravity.get()))/Math.pow(distance,2),
-                distanceVector.z*(mass/(connected ? gravity.get() / Math.PI : gravity.get()))/Math.pow(distance,2)
+                distanceVector.x*(massScalar/(connected ? gravity.get() / Math.PI : gravity.get()))/Math.pow(distance,2),
+                distanceVector.y*(massScalar/(connected ? gravity.get() / Math.PI : gravity.get()))/Math.pow(distance,2),
+                distanceVector.z*(massScalar/(connected ? gravity.get() / Math.PI : gravity.get()))/Math.pow(distance,2)
             ));
-            if(this.direction.distance(new Velocity(0,0,0)) > 10) {
-                this.direction.slow(0.4);
-            }
-        }
-        if(force.is("1") && connected && distance < 10*size) {
-            this.direction.subtract(new Velocity(       
-                -distanceVector.x*(mass/(connected ? gravity.get() / Math.PI : gravity.get()))/Math.pow(distance,2),
-                -distanceVector.y*(mass/(connected ? gravity.get() / Math.PI : gravity.get()))/Math.pow(distance,2),
-                -distanceVector.z*0.0001
-            ));
-            if(distance < 0.4*size && distance > 0.3*size) {
-                this.direction.slow(0.01);
+            if(this.direction.distance(new Velocity(0,0,0)) > 5) {
+                this.direction.slow(0.5);
             }
         }
     }
@@ -414,7 +398,7 @@ class Rhizome {
 
         } else if (this.multiplicity === 1 && rhizome.multiplicity > 1) {
             this.connections.push(rhizome.lastConnection);
-            var lastConnection = rhizome.lastConnection;
+            let lastConnection = rhizome.lastConnection;
             lastConnection.connections.forEach(connection => {
                 if(this.position.x !== connection.position.x) {
                     this.connections.push(connection);
@@ -441,7 +425,7 @@ class Rhizome {
         } 
     }
     move(position) {
-        if(!this.dead) {this.position = position;}
+        this.position = position;
         if(this.clock % 100 === 0) {
             this.setGain();
             this.setFeedback();
@@ -452,11 +436,10 @@ class Rhizome {
     }
     draw() {
         this.clock++;
-        let offset = this.size;
         if(this.circle) {
             this.circle
-                .x(origin.x + this.position.x/zoom - offset)
-                .y(origin.y + this.position.y/zoom - offset);
+                .x(origin.x + this.position.x/zoom - this.size)
+                .y(origin.y + this.position.y/zoom - this.size);
             if(this.clock % 10 === 0 && tail.get() !== "0" && this.mass < 5) {
                 this.drawPath();
             }
@@ -466,8 +449,8 @@ class Rhizome {
             
         } else {
             this.circle = d.circle(size * (massive.is("1") ? this.mass : 1))
-            .fill('#000').move((origin.x + this.position.x/zoom - offset), 
-            (origin.y + this.position.y/zoom - offset));
+            .fill('#000').move((origin.x + this.position.x/zoom - this.size), 
+            (origin.y + this.position.y/zoom - this.size));
         }
     }
     setSize() {
@@ -503,70 +486,21 @@ class Rhizome {
             this.connectionLine.plot(plot);
         }
     }
-    vibrate() {
-        if(this.dead){return;}
-        let self = this;
-        var E = 10;
-        var amountSlow = 0.001;
-        let y = 0, oldRhizome, newRhizomes = false;
-        
-        rhizomes.forEach(function(rhizome) {
-        if(self.position.x !== rhizome.position.x && self.position.distance(rhizome.position) > 10) {
-            if(rhizome.energy >= self.energy) {
-                rhizome.energy += (E/self.position.distance(rhizome.position));
-                self.energy -= (E/self.position.distance(rhizome.position))/self.multiplicity;
-            }
-        } else if(self.position.x === rhizome.position.x && self.position.y === rhizome.position.y && self.energy > 3000 && !self.dead) {
-            self.dead = true;
-            newRhizomes = true;
-            oldRhizome = y;
-        }
-        y++;
-        });
-        if(newRhizomes) {
-            var firstRhizome, tempRhizome, num = 3;
-            for(let i = 0; i < num; i++) {
-                var newRhizome = new Rhizome(
-                    new Position(
-                        self.position.x+Math.sin((2*Math.PI/num)*i)*30,
-                        self.position.y+Math.cos((2*Math.PI/num)*i)*30,0
-                    ),
-                    new Velocity(1,2,0),
-                    i === 0
-                );
-                if(i===0){
-                    firstRhizome = newRhizome;
-                } else if(i>0) {
-                    tempRhizome.connect(newRhizome);
-                } else if(i===num-1) {
-                    newRhizome.connect(firstRhizome);
-                }
-                tempRhizome = newRhizome;
-                rhizomes.push(newRhizome);
-            }
-
-            self.dead = true;
-            rhizomes.slice(oldRhizome, 1);
-        }
-    }
 }
 
 function draw() {
-    rhizomes.forEach(function(rhizome) {
-    if(!rhizome.dead)
-            rhizome.draw();
+    rhizomes.forEach(rhizome => {
+        rhizome.gravitate();
+        rhizome.setPan();
+        rhizome.draw();
     });
 }
 
 function setCenter() {
-    var newCenter = new Position(0,0,0);
+    let newCenter = new Position(0,0,0);
     rhizomes.forEach(function(rhizome) {
-        if(!rhizome.dead) {
-            rhizome.gravitate();
-            //rhizome.vibrate();
-            newCenter.add(rhizome.position);
-            rhizome.setPan();
-        }
+
+        newCenter.add(rhizome.position);
     });
     center = new Position(
         newCenter.x/rhizomes.length,
@@ -640,15 +574,15 @@ function initializeSettings() {
 }
 
 function setSelectedWave() {
-    rhizomes.forEach(rhizome => rhizome.setType(waves[wave.get()]));
-    for (var key in waves) {
+    rhizomes.forEach(rhizome => rhizome.setType());
+    for (let key in waves) {
         $(key).classList.remove('selected');
     }
     $(wave.get()).classList.add('selected');
 }
 
 function setSelectedTuning() {
-    for (var key in tunings) {
+    for (let key in tunings) {
         $(key).classList.remove('selected');
     }
     $(tuning.get()).classList.add('selected');
@@ -658,16 +592,16 @@ function setVolume(volume) {
     masterGain.gain.value = volume/1000;
 }
 
-function setNoise(haha) {
+function setNoise() {
     noiseLevel.gain.setTargetAtTime(noise.get()/2000, ctx.currentTime + 0.5, 0.5);
 }
 
-function setSpace(haha) {
+function setSpace() {
     spaceGain.gain.setTargetAtTime(space.get()/2000, ctx.currentTime + 0.5, 0.5);
 }
 
 function setDetune() {
-    rhizomes.forEach(rhizome => rhizome.detune(detune.get()));
+    rhizomes.forEach(rhizome => rhizome.setDetune());
 }
 
 function setFlutter() {
@@ -675,21 +609,29 @@ function setFlutter() {
 }
 
 function setConnecting() {
-    if(lines.is("3") ) {
-        force.set("1");
-    }
     if(lines.is("1") || lines.is("2")) {
         connecting.set("1");
-        force.set("0");
     }
     if(lines.is("0")) {
         connecting.set("0");
-        force.set("0");
+    }
+    if(lines.is("0") || lines.is("1")) {
         rhizomes.forEach(rhizome => {
             if(rhizome.connectionLine.length !== 0) {
                 rhizome.connectionLine.plot();
             }
         });
+    }
+}
+
+function setArp() {
+    if(arp.get() !== "0") {
+        isArp = true;
+    } else {
+        isArp=false;
+        isPaused=false;
+        tArp=true;
+        setVolume(master.get());
     }
 }
 
@@ -705,12 +647,17 @@ window.onload=function() {
     initializeSettings();
     createRhizomes();
     
+
+    setArp();
+    setNoise();
+    setSpace();
+    
     setInterval(() => step(), speed);
 
     // Eventhandlers
     $('screen').ondblclick = (e) => {
-        var cX = event.clientX, cY = event.clientY;
-        var newRhizome = new Rhizome(
+        let cX = event.clientX, cY = event.clientY;
+        let newRhizome = new Rhizome(
             new Position(cX*zoom- 1*origin.x*zoom, cY*zoom- 1*origin.y*zoom,0),
             new Velocity(0,0,0),
             0
@@ -718,7 +665,7 @@ window.onload=function() {
         rhizomes.push(newRhizome);          
     };
 
-     $('screen').onmousedown = e => {
+    $('screen').onmousedown = e => {
         mousePosition = {
             x: e.screenX,
             y: e.screenY
@@ -741,7 +688,7 @@ window.onload=function() {
     $('restart').onclick = () => {     
         location.reload();
     };
-    let show = true;
+
     $('show-hide-button').onclick = () => {
         show=!show;
         if(show) {
@@ -788,15 +735,15 @@ window.onload=function() {
             setVolume(master.get());
         }
     },50);
-    let key;
-    for(key in waves) {
+    
+    for(let key in waves) {
         $(key).onclick = e => {
             wave.set(e.target.id);
             setSelectedWave();
         };
     }
 
-    for(key in tunings) {
+    for(let key in tunings) {
         $(key).onclick = e => {
             tuning.set(e.target.id);
             setSelectedTuning();
@@ -817,7 +764,7 @@ window.onload=function() {
     };
     $('tune').oninput = () => tune.set($('tune').value);
     $('detune').oninput = () => {
-        detune.set($('detune').value/1000);
+        detune.set($('detune').value);
         setDetune();
     };
     $('flutter').oninput = () => {
@@ -834,9 +781,7 @@ window.onload=function() {
             rhizome.setSize();
         });
     };
-    $('positioning').oninput = () => {
-        positioning.set($('positioning').value);
-    };
+    $('positioning').oninput = () => positioning.set($('positioning').value);
     $('lines').oninput = () => {
         lines.set($('lines').value);
         setConnecting();
@@ -854,50 +799,24 @@ window.onload=function() {
         isPaused = false;
         setVolume(master.get());
     };
-    function setArp() {
-        if(arp.get() !== "0") {
-            isArp = true;
-        } else {
-            isArp=false;
-            isPaused=false;
-            tArp=true;
-            setVolume(master.get());
-        }
-    }
-    setArp();
-    setNoise();
-    setSpace();
     $('arp').oninput = () => {
         arp.set($('arp').value); 
         setArp();
     };
 
     window.addEventListener('wheel', function(e) {
+        let afterX, afterY;
+        let beforeX = center.x/zoom;
+        let beforeY = center.y/zoom;
         if (e.deltaY < 0) {
-
-            //before
-            let beforeX = center.x/zoom;
-            let beforeY = center.y/zoom;
-
-            zoom+=(e.deltaY/250)*zoom;
-
-            let afterX = center.x/zoom;
-            let afterY = center.y/zoom;
-
-            origin.x = origin.x - (afterX-beforeX);
-            origin.y = origin.y - (afterY-beforeY);
+            zoom-=0.2*zoom;
         } else if (e.deltaY > 0) {
-            let beforeX = center.x/zoom;
-            let beforeY = center.y/zoom;
-
-            zoom+=(e.deltaY/250)*zoom;
-
-            let afterX = center.x/zoom;
-            let afterY = center.y/zoom;
-
-            origin.x = origin.x - (afterX-beforeX);
-            origin.y = origin.y - (afterY-beforeY);
+            zoom+=0.2*zoom;
         }
+        afterX = center.x/zoom;
+        afterY = center.y/zoom;
+        origin.x = origin.x - (afterX-beforeX);
+        origin.y = origin.y - (afterY-beforeY);
         rhizomes.forEach(rhizome => {
             rhizome.setSize();
         });
