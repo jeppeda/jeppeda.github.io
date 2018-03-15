@@ -168,15 +168,15 @@ class Velocity extends Position {
 
 /***SETTINGS
     ********/
-    let wave = new Setting('wave', 'sin');
-    let tuning = new Setting('tuning', 'rnd');
+    let wave = new Setting('wave', 'saw');
+    let tuning = new Setting('tuning', 'minor');
     let arp = new Setting('arp', '0');
     let lopass = new Setting('lopass', '330');
     let tune = new Setting('tune', '476');
     let detune = new Setting('detune', '0');
     let flutter = new Setting('flutter', '0');
     let space = new Setting('space', '0');
-    let number = new Setting('number', '5');
+    let number = new Setting('number', '9');
     let gravity = new Setting('gravity', '30');
     let fm = new Setting('fm', '160');
     let noise = new Setting('noise', '10');
@@ -186,7 +186,7 @@ class Velocity extends Position {
     let connecting = new Setting('connecting', "0");
     let lines = new Setting('lines', "0");
     let positioning = new Setting('positioning', "0");
-    let sub = new Setting('sub', "0");
+    let sub = new Setting('sub', "10");
     let subFeedback = new Setting('subFeedback', "0");
 
 /***TUNINGS
