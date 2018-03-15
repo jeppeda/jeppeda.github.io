@@ -181,13 +181,13 @@ class Velocity extends Position {
     let fm = new Setting('fm', '160');
     let noise = new Setting('noise', '10');
     let master = new Setting('master', '300');
-    let tail = new Setting('tail', '0');
+    let tail = new Setting('tail', '1');
     let massive = new Setting('massive', "0");
     let connecting = new Setting('connecting', "0");
     let lines = new Setting('lines', "0");
     let positioning = new Setting('positioning', "0");
     let sub = new Setting('sub', "10");
-    let subFeedback = new Setting('subFeedback', "0");
+    let subFeedback = new Setting('subFeedback', "10");
 
 /***TUNINGS
     *******/
