@@ -15,14 +15,12 @@ class Hypha {
         this.path.push(lweP);
     }
     get svgPath() {
-        let svgp = 'M'+this.position[0] + ' ' + this.position[1], i=2;
+        let svgp = 'M'+this.path[0][0] + ' ' + this.path[0][1], i=2;
         while(i<this.path.length) {
             svgp += 'C'+this.path[i-2][0]+' '+this.path[i-2][1]+' '+this.path[i-1][0]+' '+this.path[i-1][1]+' '+this.path[i][0]+' '+this.path[i][1]+' ';
             i+=3;
         }
-        //svgp += 'z';
         return svgp;
-        return 'M'+this.position[0] + ' ' + this.position[1] + this.path.map(pP=> 'T'+pP[0]+' '+pP[1]+' ').join('') + 'z';
     }
 }
 
@@ -69,10 +67,14 @@ class Terrain {
         ];
 
         possiblePositions = possiblePositions.filter(possiblePosition => 
-            path.findIndex(i=>JSON.stringify(i)===JSON.stringify(possiblePosition))===-1 || possiblePosition[0]===0 || possiblePosition[1]===0
+            path.findIndex(i=>JSON.stringify(i)===JSON.stringify(possiblePosition))===-1
             );
         if(possiblePositions.length === 0) {
-            console.log('hov');
+            possiblePositions = [
+                [x+2*EC,y],[x+2*EC,y+2*EC],[x+2*EC,y-2*EC],
+                [x-2*EC,y],[x-2*EC,y+2*EC],[x-2*EC,y-2*EC],
+                [x,y+2*EC],[x,y-2*EC]
+            ];
         }
         let possiblePositionValues = possiblePositions.map(p=>this.get(p[0],p[1]));
         let minval = Math.min(...possiblePositionValues);
@@ -85,8 +87,8 @@ class Terrain {
 window.onload=()=>{
     d = SVG('screen').size(window.innerWidth, window.innerHeight);
     terrain = new Terrain(window.innerWidth);
-    hyphae = new Hyphae([new Hypha([[300,300]])]);
-    for(let i=0;i<200;i++) {
+    hyphae = new Hyphae([new Hypha([[300,300]]),new Hypha([[300,500]])]);
+    for(let i=0;i<300;i++) {
     hyphae.expand();
     }
     hyphae.draw();
