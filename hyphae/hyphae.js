@@ -87,7 +87,7 @@ class Terrain {
 window.onload=()=>{
     d = SVG('screen').size(window.innerWidth, window.innerHeight);
     terrain = new Terrain(window.innerWidth);
-    hyphae = new Hyphae([new Hypha([[300,300]]),new Hypha([[300,500]])]);
+    hyphae = new Hyphae([new Hypha([[300,300]]),new Hypha([[500,400]])]);
     for(let i=0;i<300;i++) {
     hyphae.expand();
     }
