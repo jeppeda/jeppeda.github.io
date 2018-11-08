@@ -1,4 +1,4 @@
-const EC = 10; //EXPANSION CONSTANT
+const EC = 5; //EXPANSION CONSTANT
 let d,hyphae,terrain;
 class Hypha {
     constructor(path) {
@@ -8,11 +8,21 @@ class Hypha {
         return this.path[this.path.length-1];
     }
     draw() {
-        d.polyline(this.path).fill('none').stroke({ width: 1 });
+        d.path(this.svgPath).fill('none').stroke({ width: 1 });
     }
     expand() {
         let lweP = terrain.getLeastWorkExpansion(this.position, this.path);
         this.path.push(lweP);
+    }
+    get svgPath() {
+        let svgp = 'M'+this.position[0] + ' ' + this.position[1], i=2;
+        while(i<this.path.length) {
+            svgp += 'C'+this.path[i-2][0]+' '+this.path[i-2][1]+' '+this.path[i-1][0]+' '+this.path[i-1][1]+' '+this.path[i][0]+' '+this.path[i][1]+' ';
+            i+=3;
+        }
+        //svgp += 'z';
+        return svgp;
+        return 'M'+this.position[0] + ' ' + this.position[1] + this.path.map(pP=> 'T'+pP[0]+' '+pP[1]+' ').join('') + 'z';
     }
 }
 
@@ -75,8 +85,8 @@ class Terrain {
 window.onload=()=>{
     d = SVG('screen').size(window.innerWidth, window.innerHeight);
     terrain = new Terrain(window.innerWidth);
-    hyphae = new Hyphae([new Hypha([[100,100],[200,200]])]);
-    for(let i=0;i<100;i++) {
+    hyphae = new Hyphae([new Hypha([[300,300]])]);
+    for(let i=0;i<200;i++) {
     hyphae.expand();
     }
     hyphae.draw();
